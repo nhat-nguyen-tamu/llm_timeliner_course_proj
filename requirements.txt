@@ -1,0 +1,10 @@
+langchain
+langchain_community
+langgraph
+langchain-openai
+streamlit
+openai
+duckduckgo_search # for online searching
+google-api-python-client # for google services like calendar
+google-auth-httplib2 
+google-auth-oauthlib
