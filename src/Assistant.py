@@ -36,7 +36,7 @@ class Assistant:
         llm = ChatOpenAI(model="gpt-4o", api_key=api_key)  # Replace with your API key
 
         self.tools = Tools(st=self.st, assistant=llm)
-        self.runnable = llm# self.tools.get_assistant()
+        self.runnable = self.tools.get_assistant()
 
     def convert_tool_messages(self, messages: list[AnyMessage]) -> list[AnyMessage]:
         """
