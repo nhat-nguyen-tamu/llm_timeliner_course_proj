@@ -9,9 +9,10 @@ def test_graph_call():
     # graph.call("put on my calendar to meet with my professor tomorrow at 10 AM")
     # graph.call("hello!")
     
+    # graph.call("What major events happened in the US between 2000-2010?")
     # graph.call("What is the current valuation of N-Vidia?")
-    graph.call("What is the timeline of Mamba LLM?")
     # graph.call("What are the current news of Tesla from October to now?")
     # graph.call("What's going on in south korea in the last 2 weeks?")
+    graph.call("What is the timeline of Mamba LLM?")
 
 test_graph_call()

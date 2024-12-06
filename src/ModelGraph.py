@@ -73,6 +73,8 @@ class ST_Proxy():
             'DDGS_calls': 0,
             'arxiv_calls': 0,
 
+            'call_failures': 0,
+
             'web_call_cache_hits': 0,
         }
 

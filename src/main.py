@@ -10,6 +10,7 @@ from ModelGraph import AgentGraph
 # Streamlit app layout
 st.title("Timeline Researcher")
 st.write("This assistant can build important timelines of a topic by scouting from:")
+st.write("- Arxiv")
 st.write("- DuckDuckGo")
 st.write("- Wikipedia")
 
@@ -22,6 +23,7 @@ def get_meta_data():
     total_api_calls = (
         session_state.wikipedia_deep_calls +
         session_state.wikipedia_shallow_calls +
+        session_state.arxiv_calls +
         session_state.DDGS_calls
     )
     
@@ -39,10 +41,12 @@ def get_meta_data():
         f"- Output Tokens: {session_state.output_tokens:,}\n"
         f"- Total Tokens: {total_tokens:,}\n\n"
         f"**API Calls:**\n"
+        f"- Arxiv: {session_state.arxiv_calls:,}\n"
         f"- Wikipedia (Deep): {session_state.wikipedia_deep_calls:,}\n"
         f"- Wikipedia (Shallow): {session_state.wikipedia_shallow_calls:,}\n"
         f"- DuckDuckGo Search: {session_state.DDGS_calls:,}\n"
         f"- Total API Calls: {total_api_calls:,}\n\n"
+        f"- API Call Failures: {session_state.call_failures:,}\n\n"
         f"**Cache Performance:**\n"
         f"- Cache Hits: {session_state.web_call_cache_hits:,}\n"
         f"- Cache Hit Rate: {cache_info}"
@@ -147,7 +151,6 @@ if st.session_state.confirmations:
     
     confirmation(action['message'])
 
-
 if submit_button and user_input:
     if st.session_state.is_generating:
         st.session_state.my_graph.abort()
@@ -156,6 +159,11 @@ if submit_button and user_input:
         # Set the flag to indicate that the model is generating text
         st.session_state.is_generating = True
         empty_response_container()
+        
+        st.session_state.chat_history = []
+        st.session_state.confirmations = []
+        st.session_state.is_generating = False
+        st.session_state.response_text = ""
 
         st.session_state.my_graph.call(user_input)
         submit_response_to_history()

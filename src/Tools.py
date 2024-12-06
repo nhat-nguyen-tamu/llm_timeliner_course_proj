@@ -71,7 +71,7 @@ class Tools:
             return wrapper
     
         @tool
-        def ask_question(questions: list[str]) -> str:
+        def ask_questions(questions: list[str]) -> str:
             '''Write questions into the state. These questions will be used by the researcher to follow up with search results. Checks for duplicate and similar questions.'''
             
             if not self.st.session_state.researching:
@@ -135,6 +135,7 @@ class Tools:
             try:
                 for term in private_information_blacklist:
                     if term in search_term.lower():
+                        self.st.session_state.call_failures += 1
                         return f"There was an error executing the search: You cannot search private information online ({term})"
 
                 result = DDGS().text(search_term, max_results=10)
@@ -145,6 +146,7 @@ class Tools:
                 
                 return result_str
             except Exception as e:
+                self.st.session_state.call_failures += 1
                 return f"There was an error executing the search: {str(e)}"
         
         @tool
@@ -163,6 +165,7 @@ class Tools:
                 # Check for blacklisted terms
                 for term in private_information_blacklist:
                     if term in search_term.lower():
+                        self.st.session_state.call_failures += 1
                         return f"There was an error executing the search: You cannot search private information online ({term})"
 
                 # Create client and search
@@ -202,6 +205,7 @@ class Tools:
                 
                 return result_str
             except Exception as e:
+                self.st.session_state.call_failures += 1
                 return f"There was an error executing the search: {str(e)}"
 
         @tool
@@ -219,6 +223,7 @@ class Tools:
             try:
                 for term in private_information_blacklist:
                     if term in search_term.lower():
+                        self.st.session_state.call_failures += 1
                         return f"There was an error executing the search: You cannot search private information online ({term})"
 
                 result = wikipedia.summary(search_term)
@@ -229,6 +234,7 @@ class Tools:
                 
                 return result_str
             except Exception as e:
+                self.st.session_state.call_failures += 1
                 return f"There was an error executing the search: {str(e)}"
 
         @tool
@@ -246,6 +252,7 @@ class Tools:
             try:
                 for term in private_information_blacklist:
                     if term in search_term.lower():
+                        self.st.session_state.call_failures += 1
                         return f"There was an error executing the search: You cannot search private information online ({term})"
 
                 result = wikipedia.page(search_term).content
@@ -256,6 +263,7 @@ class Tools:
                 
                 return result_str
             except Exception as e:
+                self.st.session_state.call_failures += 1
                 return f"There was an error executing the search: {str(e)}"
             
         @tool
@@ -314,7 +322,7 @@ class Tools:
             return "Research has ended"
 
         if tool_set == "questioner":
-            tools = [ask_question]
+            tools = [ask_questions]
         elif tool_set == "researcher":
             tools = [duck_duck_go, take_notes, wikipedia_shallow, wikipedia_deep, arxiv_search]
         elif tool_set == "builder":

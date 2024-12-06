@@ -125,8 +125,8 @@ class Questioner(Assistant):
 
         self.system_prompt = (
             "You are a timeline researcher. "
-            "Your will call ask_question to produce concise questions appropriate to the user's prompt that can be researched online. "
-            "If no more questions are needed, you will NOT call ask_question, and will simply output 'done'. "
+            "Your will call ask_questions to produce concise questions appropriate to the user's prompt that can be researched online. "
+            "If no more questions are needed, you will NOT call ask_questions, and will simply output 'done'. "
             "You may produce up to 3 questions. "
             "You MUST ask questions that forward the understanding of the user prompt (ex. try asking, what happened in year/month/date X?). "
             "You MUST produce diverse questions (ex, don't make multiple questions around the same date) unless a certain date is extremely important or queried by the user. "
