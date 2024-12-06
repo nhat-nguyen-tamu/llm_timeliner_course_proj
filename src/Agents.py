@@ -26,7 +26,7 @@ def get_state_questioner(self):
         
     )
 
-    return AIMessage(content=f"{state}")
+    return HumanMessage(content=f"{state}")
 
 def get_state_researcher(self):
     state = (
@@ -37,7 +37,7 @@ def get_state_researcher(self):
         # f"Previous Action and Thought: {list_to_readable(self.st.session_state.questions)}"
     )
 
-    return AIMessage(content=f"{state}")
+    return HumanMessage(content=f"{state}")
 
 def get_state_builder(self):
     state = (
@@ -46,7 +46,7 @@ def get_state_builder(self):
         f"Notes:\n{list_to_readable(self.st.session_state.notes)}\n\n"
     )
 
-    return AIMessage(content=f"{state}")
+    return HumanMessage(content=f"{state}")
 
 # This function is to jerry rig the inability for langgraph to reset its message state
 # we maintain our own state and have full control of it
@@ -188,6 +188,7 @@ class Builder(Assistant):
             "You will take the provided notes and questions/answers and builder an event timeline. "
             "You will build a list of events in chronological order. "
             "Your output MUST follow this format -> (MM-DD-YYYY): <event>. "
+            "Your output will be displayed as markdown text. "
             "Use both the notes and questions and answers to build this timeline. "
         )
 

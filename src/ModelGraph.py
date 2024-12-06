@@ -51,7 +51,8 @@ class ST_Proxy():
     def reset_state(self):
         self.session_state = DotDict(self.new_state())
         self.secrets = DotDict({
-            'API_KEY': st.secrets["OPENAI_API_KEY"]
+            'OPENAI_API_KEY': st.secrets["OPENAI_API_KEY"],
+            'ANTHROPIC_API_KEY': st.secrets["ANTHROPIC_API_KEY"],
         })
 
     def new_state(self):
@@ -63,6 +64,16 @@ class ST_Proxy():
 
             # this is always true until the LLM sets it to false, which shuts off the research loop
             'researching': True,
+
+            'input_tokens': 0,
+            'output_tokens': 0,
+            
+            'wikipedia_deep_calls': 0,
+            'wikipedia_shallow_calls': 0,
+            'DDGS_calls': 0,
+            'arxiv_calls': 0,
+
+            'web_call_cache_hits': 0,
         }
 
 class AgentGraph():

@@ -7,6 +7,7 @@ import functools
 import datetime
 from duckduckgo_search import DDGS
 import wikipedia
+import arxiv
 
 # from GoogleAPIHelper import GoogleAPIHelper
 # google_api = GoogleAPIHelper()
@@ -20,6 +21,7 @@ class Tools:
             self.ddg_cache = {}
             self.wiki_shallow_cache = {}
             self.wiki_deep_cache = {}
+            self.arxiv_cache = {}
 
             self.tools_fallback = self.create_tool_node_with_fallback(self.tools)
             self.assistant = assistant.bind_tools(self.tools)
@@ -123,8 +125,11 @@ class Tools:
             '''Search online. Useful for initial search or informal searching. Do not search private information online. Information may be incorrect.'''
             private_information_blacklist = st.secrets["BLACKLIST_SEARCH_TERMS"]
 
+            self.st.session_state.DDGS_calls += 1
+
             # Check cache first
             if search_term in self.ddg_cache:
+                self.st.session_state.web_call_cache_hits += 1
                 return self.ddg_cache[search_term]
 
             try:
@@ -141,14 +146,74 @@ class Tools:
                 return result_str
             except Exception as e:
                 return f"There was an error executing the search: {str(e)}"
+        
+        @tool
+        def arxiv_search(search_term: str) -> str:
+            '''Search on arxiv. Returns abstracts of the top 5 most recent academic papers matching the search term.'''
+            private_information_blacklist = st.secrets["BLACKLIST_SEARCH_TERMS"]
+
+            self.st.session_state.arxiv_calls += 1
+
+            # Check cache first
+            if search_term in self.arxiv_cache:
+                self.st.session_state.web_call_cache_hits += 1
+                return self.arxiv_cache[search_term]
+
+            try:
+                # Check for blacklisted terms
+                for term in private_information_blacklist:
+                    if term in search_term.lower():
+                        return f"There was an error executing the search: You cannot search private information online ({term})"
+
+                # Create client and search
+                client = arxiv.Client()
+                search = arxiv.Search(
+                    query=search_term,
+                    max_results=5,
+                    sort_by=arxiv.SortCriterion.SubmittedDate
+                )
+
+                # Fetch results
+                results = []
+                for result in client.results(search):
+                    paper_info = {
+                        'title': result.title,
+                        'authors': ', '.join(author.name for author in result.authors),
+                        'abstract': result.summary,
+                        'url': result.entry_id,
+                        'published': result.published.strftime('%Y-%m-%d')
+                    }
+                    results.append(paper_info)
+
+                # Format results as a string
+                if not results:
+                    result_str = "No papers found matching the search term."
+                else:
+                    result_str = "Top 5 most recent papers:\n\n"
+                    for i, paper in enumerate(results, 1):
+                        result_str += f"{i}. Title: {paper['title']}\n"
+                        result_str += f"   Authors: {paper['authors']}\n"
+                        result_str += f"   Published: {paper['published']} (YYYY-MM-DD)\n"
+                        result_str += f"   URL: {paper['url']}\n"
+                        result_str += f"   Abstract: {paper['abstract']}\n\n"
+
+                # Cache the result
+                self.arxiv_cache[search_term] = result_str
+                
+                return result_str
+            except Exception as e:
+                return f"There was an error executing the search: {str(e)}"
 
         @tool
         def wikipedia_shallow(search_term: str) -> str:
             '''Shallow wikipedia search, only provides a summary. Useful for quick referencing and low token usage. For a deeper search, use wikipedia_deep.'''
             private_information_blacklist = st.secrets["BLACKLIST_SEARCH_TERMS"]
 
+            self.st.session_state.wikipedia_shallow_calls += 1
+
             # Check cache first
             if search_term in self.wiki_shallow_cache:
+                self.st.session_state.web_call_cache_hits += 1
                 return self.wiki_shallow_cache[search_term]
 
             try:
@@ -171,8 +236,11 @@ class Tools:
             '''Provides the full wikipedia text on requested content. This is VERY expensive. It is recommended that wikipedia_shallow is called first.'''
             private_information_blacklist = st.secrets["BLACKLIST_SEARCH_TERMS"]
 
+            self.st.session_state.wikipedia_deep_calls += 1
+
             # Check cache first
             if search_term in self.wiki_deep_cache:
+                self.st.session_state.web_call_cache_hits += 1
                 return self.wiki_deep_cache[search_term]
 
             try:
@@ -248,7 +316,7 @@ class Tools:
         if tool_set == "questioner":
             tools = [ask_question]
         elif tool_set == "researcher":
-            tools = [duck_duck_go, take_notes, wikipedia_shallow, wikipedia_deep]
+            tools = [duck_duck_go, take_notes, wikipedia_shallow, wikipedia_deep, arxiv_search]
         elif tool_set == "builder":
             tools = []
 

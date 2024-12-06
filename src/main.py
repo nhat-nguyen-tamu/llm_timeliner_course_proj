@@ -14,6 +14,40 @@ st.write("- DuckDuckGo")
 st.write("- Wikipedia")
 
 # Callback to handle event updates
+def get_meta_data():
+    graph = st.session_state.my_graph
+    session_state = graph.st.session_state
+    
+    # Calculate total API calls
+    total_api_calls = (
+        session_state.wikipedia_deep_calls +
+        session_state.wikipedia_shallow_calls +
+        session_state.DDGS_calls
+    )
+    
+    # Calculate total tokens
+    total_tokens = session_state.input_tokens + session_state.output_tokens
+
+    cache_info = "N/A (no API calls yet)"
+    if total_api_calls > 0:
+        cache_info = f"{(session_state.web_call_cache_hits / total_api_calls * 100):.1f}% (of total calls)"
+    
+    return (
+        "### Cost Summary\n"
+        f"**Token Usage:**\n"
+        f"- Input Tokens: {session_state.input_tokens:,}\n"
+        f"- Output Tokens: {session_state.output_tokens:,}\n"
+        f"- Total Tokens: {total_tokens:,}\n\n"
+        f"**API Calls:**\n"
+        f"- Wikipedia (Deep): {session_state.wikipedia_deep_calls:,}\n"
+        f"- Wikipedia (Shallow): {session_state.wikipedia_shallow_calls:,}\n"
+        f"- DuckDuckGo Search: {session_state.DDGS_calls:,}\n"
+        f"- Total API Calls: {total_api_calls:,}\n\n"
+        f"**Cache Performance:**\n"
+        f"- Cache Hits: {session_state.web_call_cache_hits:,}\n"
+        f"- Cache Hit Rate: {cache_info}"
+    )
+
 def tostring_event(event):
     if event.get('user'):
         return f"**You:** {event['user']}"
@@ -36,6 +70,7 @@ def event_callback(event):
     # st.session_state.response_text = f"{st.session_state.response_text}\n\n{tostring_event(event)}" # mode: read from top down
     st.session_state.response_text = f"{tostring_event(event)}\n\n---\n\n{st.session_state.response_text}" # mode: read from bottom up
     response_container.markdown(f"{st.session_state.response_text}")
+    meta_data_container.markdown(get_meta_data())
 
 # Callback to handle streaming text
 def stream_callback(text_chunk):
@@ -56,6 +91,11 @@ if "response_text" not in st.session_state:
 
 if "my_graph" not in st.session_state:
     st.session_state.my_graph = AgentGraph(st=st, model_name="TimelineGPT", event_callback=event_callback, stream_callback=stream_callback)
+
+st.markdown("---")
+
+meta_data_container = st.empty()
+meta_data_container.markdown(get_meta_data())
 
 # Form for user input and button
 with st.form(key="chat_form"):

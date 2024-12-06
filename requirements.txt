@@ -2,6 +2,7 @@ langchain
 langchain_community
 langgraph
 langchain-openai
+langchain-anthropic
 streamlit
 openai
 duckduckgo_search # for online searching
@@ -10,3 +11,4 @@ google-auth-httplib2
 google-auth-oauthlib
 rouge-score # for evaluation
 wikipedia
+arxiv
