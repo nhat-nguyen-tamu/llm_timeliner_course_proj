@@ -1,4 +1,20 @@
 # llm_timeliner_course_proj
+How to get started:
+1. clone git
+2. create a venv
+3. pip install -r requirements.txt
+4. create .streamlit/secrets.toml
+5. add OPENAI_API_KEY="<YOUR KEY HERE>"
+6. add BLACKLIST_SEARCH_TERMS=["<PRIVATE INFO>"] (this is used to blacklist the LLM from searching these keywords online, you can put private information here to prevent accidental leakage)
+7. streamlit run src/main.py
+8. [go to localhost:8001](http://localhost:8501)
+9. input a search query
+
+Note:
+- try to specify a time window
+- recent news are more volatile and will be difficult for the LLM
+- you can swap out gpt-4o-mini with gpt-4o in Assistant.py for better performance
+- when creating a new ModelGraph, you can pass hyperparameters max_questions=5 (stop researching if we hit 5 questions answered), max_notes=5 (stop researching if we hit 5 notes logged), recursion_depth=100 ([langgraph recursion depth](https://langchain-ai.github.io/langgraph/how-tos/recursion-limit/))
 
 # Timeliner: An LLM Timeline Generator with Statefulness and Self Reflection
 
