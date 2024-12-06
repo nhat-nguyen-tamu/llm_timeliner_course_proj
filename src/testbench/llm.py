@@ -10,5 +10,8 @@ def test_graph_call():
     # graph.call("hello!")
     
     # graph.call("What is the current valuation of NVidia?")
+    # graph.call("What is the timeline of Mamba LLM?")
+    # graph.call("What are the current news of Tesla from October to now?")
+    graph.call("What's going on in south korea in the last 2 weeks?")
 
 test_graph_call()

@@ -11,13 +11,14 @@ from ModelGraph import AgentGraph
 st.title("Timeline Researcher")
 st.write("This assistant can build important timelines of a topic by scouting from:")
 st.write("- DuckDuckGo")
+st.write("- Wikipedia")
 
 # Callback to handle event updates
 def tostring_event(event):
     if event.get('user'):
         return f"**You:** {event['user']}"
     elif event.get('assistant'):
-        return f"**{st.session_state.my_graph.model_name}:** {event['assistant']}"
+        return f"**{st.session_state.my_graph.model_name}:** \n\n{event['assistant']}"
     elif event.get('tool_call'):
         call_output = ["**Tool Calls:**"]
         for call_instance in event['tool_call']:
@@ -31,8 +32,9 @@ def tostring_event(event):
 
 def event_callback(event):
     print("---> event callback", event)
-    st.session_state.response_text = f"{st.session_state.response_text}\n\n{tostring_event(event)}" # read from top down
-    # st.session_state.response_text = f"{tostring_event(event)}\n\n{st.session_state.response_text}" # read from bottom up
+    # st.session_state.response_text = f"{tostring_event(event)}" # mode: delete previous text and replace
+    # st.session_state.response_text = f"{st.session_state.response_text}\n\n{tostring_event(event)}" # mode: read from top down
+    st.session_state.response_text = f"{tostring_event(event)}\n\n---\n\n{st.session_state.response_text}" # mode: read from bottom up
     response_container.markdown(f"{st.session_state.response_text}")
 
 # Callback to handle streaming text
@@ -53,7 +55,7 @@ if "response_text" not in st.session_state:
     st.session_state.response_text = ""
 
 if "my_graph" not in st.session_state:
-    st.session_state.my_graph = AgentGraph(st=st, model_name="PersonalGPT", event_callback=event_callback, stream_callback=stream_callback)
+    st.session_state.my_graph = AgentGraph(st=st, model_name="TimelineGPT", event_callback=event_callback, stream_callback=stream_callback)
 
 # Form for user input and button
 with st.form(key="chat_form"):

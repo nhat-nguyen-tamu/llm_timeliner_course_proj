@@ -6,16 +6,25 @@ import streamlit as st
 import functools
 import datetime
 from duckduckgo_search import DDGS
+import wikipedia
 
 # from GoogleAPIHelper import GoogleAPIHelper
 # google_api = GoogleAPIHelper()
 
 class Tools:
-    def __init__(self, st=None, assistant=None):
+    def __init__(self, st=None, assistant=None, tool_set="questioner"):
         self.st = st
-        self.tools = self.get_tools()
-        self.tools_fallback = self.create_tool_node_with_fallback(self.tools)
-        self.assistant = assistant.bind_tools(self.tools)
+        self.tools = self.get_tools(tool_set)
+        if self.tools:
+            # caches reduce the chances of a rate limit error
+            self.ddg_cache = {}
+            self.wiki_shallow_cache = {}
+            self.wiki_deep_cache = {}
+
+            self.tools_fallback = self.create_tool_node_with_fallback(self.tools)
+            self.assistant = assistant.bind_tools(self.tools)
+        else:
+            self.assistant = assistant
 
     def get_assistant(self):
         return self.assistant
@@ -38,7 +47,7 @@ class Tools:
             [RunnableLambda(handle_tool_error)], exception_key="error"
         )
 
-    def get_tools(self):
+    def get_tools(self, tool_set="questioner"):
         def action_request(func): # ideally some tools should ask us for confirmation before submitting but I'm out of time to code this
             @functools.wraps(func) # we need this to preserve the docstrings for each tool when we wrap it
             def wrapper(*args, **kwargs):
@@ -46,7 +55,6 @@ class Tools:
                 params = ', '.join([str(arg) for arg in args] + [f"{k}={v}" for k, v in kwargs.items()])
                 confirmation_message = f"Do you want to execute '{func.__name__}' with parameters: {params}? Reply 'yes' or 'no'."
                 
-                print("WRAPPER SESSION STATE", st.session_state)
                 st.session_state.confirmations.append({
                     'args': args,
                     'kwargs': kwargs,
@@ -59,27 +67,191 @@ class Tools:
                 else:
                     return "Tool successfully ran. User must approve of request."
             return wrapper
+    
+        @tool
+        def ask_question(questions: list[str]) -> str:
+            '''Write questions into the state. These questions will be used by the researcher to follow up with search results. Checks for duplicate and similar questions.'''
+            
+            if not self.st.session_state.researching:
+                return "Cannot ask any more questions - research phase has ended"
+
+            if not isinstance(questions, list):
+                return "Error: questions must be provided as a list of strings"
+
+            error_messages = []
+            success_count = 0
+            
+            for question in questions:
+                if not question or not isinstance(question, str):
+                    error_messages.append(f"Skipped invalid question: {question}")
+                    continue
+                    
+                # Clean and normalize the question
+                cleaned_question = " ".join(question.strip().split())
+                
+                # Check if question is already in questions list
+                if cleaned_question in self.st.session_state.questions:
+                    error_messages.append(f"Question already exists: '{cleaned_question}'")
+                    continue
+                    
+                # Check if question is a substring of or contains any answered questions
+                substring_match = False
+                for answered in self.st.session_state.answered_questions:
+                    if cleaned_question.lower() in answered.lower() or answered.lower() in cleaned_question.lower():
+                        error_messages.append(f"Question '{cleaned_question}' is too similar to previously answered question: '{answered}'")
+                        substring_match = True
+                        break
+                        
+                if substring_match:
+                    continue
+                    
+                # Add the question if it passes all checks
+                self.st.session_state.questions.append(cleaned_question)
+                success_count += 1
+            
+            # Construct response message
+            response_parts = []
+            if success_count > 0:
+                response_parts.append(f"Successfully added {success_count} question{'s' if success_count != 1 else ''}")
+            if error_messages:
+                response_parts.append("\nWarnings:\n- " + "\n- ".join(error_messages))
+                
+            return " ".join(response_parts) if response_parts else "No valid questions were provided"
 
         @tool
         def duck_duck_go(search_term: str) -> str:
-            '''Search online via. Do not search private information online. Information may be incorrect.'''
+            '''Search online. Useful for initial search or informal searching. Do not search private information online. Information may be incorrect.'''
             private_information_blacklist = st.secrets["BLACKLIST_SEARCH_TERMS"]
+
+            # Check cache first
+            if search_term in self.ddg_cache:
+                return self.ddg_cache[search_term]
 
             try:
                 for term in private_information_blacklist:
                     if term in search_term.lower():
                         return f"There was an error executing the search: You cannot search private information online ({term})"
 
-
-                result = DDGS().text(search_term, max_results=5)
-
-                # print("DUCK DUCK GO RESULTS:", result)
+                result = DDGS().text(search_term, max_results=10)
+                result_str = str(result)
                 
-                return str(result)
+                # Cache the result
+                self.ddg_cache[search_term] = result_str
+                
+                return result_str
             except Exception as e:
                 return f"There was an error executing the search: {str(e)}"
 
-        tools = [duck_duck_go] # , no_tool_call]
+        @tool
+        def wikipedia_shallow(search_term: str) -> str:
+            '''Shallow wikipedia search, only provides a summary. Useful for quick referencing and low token usage. For a deeper search, use wikipedia_deep.'''
+            private_information_blacklist = st.secrets["BLACKLIST_SEARCH_TERMS"]
+
+            # Check cache first
+            if search_term in self.wiki_shallow_cache:
+                return self.wiki_shallow_cache[search_term]
+
+            try:
+                for term in private_information_blacklist:
+                    if term in search_term.lower():
+                        return f"There was an error executing the search: You cannot search private information online ({term})"
+
+                result = wikipedia.summary(search_term)
+                result_str = str(result)
+                
+                # Cache the result
+                self.wiki_shallow_cache[search_term] = result_str
+                
+                return result_str
+            except Exception as e:
+                return f"There was an error executing the search: {str(e)}"
+
+        @tool
+        def wikipedia_deep(search_term: str) -> str:
+            '''Provides the full wikipedia text on requested content. This is VERY expensive. It is recommended that wikipedia_shallow is called first.'''
+            private_information_blacklist = st.secrets["BLACKLIST_SEARCH_TERMS"]
+
+            # Check cache first
+            if search_term in self.wiki_deep_cache:
+                return self.wiki_deep_cache[search_term]
+
+            try:
+                for term in private_information_blacklist:
+                    if term in search_term.lower():
+                        return f"There was an error executing the search: You cannot search private information online ({term})"
+
+                result = wikipedia.page(search_term).content
+                result_str = str(result)
+                
+                # Cache the result
+                self.wiki_deep_cache[search_term] = result_str
+                
+                return result_str
+            except Exception as e:
+                return f"There was an error executing the search: {str(e)}"
+            
+        @tool
+        def log_timeline(day: int, month: int, year: int, title: str, description: str) -> str:
+            '''Log information learned from online sources, this log will be used to build a timeline. Avoid appending duplicates.'''
+
+        @tool
+        def take_notes(notes: list[str]) -> str:
+            '''Write notes into storage. These notes will be used to generate a timeline. Avoids duplicate notes and validates input.'''
+            
+            if not self.st.session_state.researching:
+                return "Cannot take notes - research phase has ended"
+
+            if not isinstance(notes, list):
+                return "Error: notes must be provided as a list of strings"
+                
+            error_messages = []
+            success_count = 0
+            
+            for note in notes:
+                # Basic input validation
+                if not note or not isinstance(note, str):
+                    error_messages.append(f"Skipped invalid note entry: {note}")
+                    continue
+                    
+                # Remove excess whitespace and normalize
+                cleaned_note = " ".join(note.strip().split())
+                
+                # Check for duplicates (case insensitive)
+                if any(existing_note.lower() == cleaned_note.lower() 
+                    for existing_note in self.st.session_state.notes):
+                    error_messages.append(f"Note already exists: '{cleaned_note}'")
+                    continue
+                    
+                # Add the note if it passes all checks
+                self.st.session_state.notes.append(cleaned_note)
+                success_count += 1
+            
+            # Construct response message
+            response_parts = []
+            if success_count > 0:
+                response_parts.append(f"Successfully added {success_count} note{'s' if success_count != 1 else ''}")
+            if error_messages:
+                response_parts.append("\nWarnings:\n- " + "\n- ".join(error_messages))
+                
+            return " ".join(response_parts) if response_parts else "No valid notes were provided"
+    
+        @tool
+        def done() -> str:
+            '''Once no more questions are needed, done() should be called to end research. Do not call this twice.'''
+
+            self.st.session_state.researching = False
+            if not self.st.session_state.researching:
+                return "Cannot call this twice"
+            
+            return "Research has ended"
+
+        if tool_set == "questioner":
+            tools = [ask_question]
+        elif tool_set == "researcher":
+            tools = [duck_duck_go, take_notes, wikipedia_shallow, wikipedia_deep]
+        elif tool_set == "builder":
+            tools = []
+
         return tools
 
 

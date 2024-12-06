@@ -19,23 +19,18 @@ class State(TypedDict):
     messages: Annotated[list[AnyMessage], add_messages] = []
 
 class Assistant:
-    def __init__(self, st=None, stream_callback=None):
+    def __init__(self, st=None, stream_callback=None, tool_set="questioner"):
         self.stream_callback = stream_callback
         self.st = st
-        self.system_prompt = (
-            "You are a news researcher. "
-            "Your job is to perform research to create a timeline of important points for a given topic. "
-            "You MUST use tools and end every message with an emoji."
-            f"Today is {datetime.datetime.today().strftime('%m-%d-%Y')} (MM-DD-YY)."
-        )
 
         # llm = ChatOllama(model="llama3.2")
 
         # CONFIGURABLE BLOCK: you can disable the llm above and use chatgpt's llm here if you have the API key, it's much smarter and faster
-        api_key = st.secrets["OPENAI_API_KEY"]
+        api_key = st.secrets["API_KEY"]
         llm = ChatOpenAI(model="gpt-4o", api_key=api_key)  # Replace with your API key
 
-        self.tools = Tools(st=self.st, assistant=llm)
+        self.llm = llm
+        self.tools = Tools(st=self.st, assistant=llm, tool_set=tool_set)
         self.runnable = self.tools.get_assistant()
 
     def convert_tool_messages(self, messages: list[AnyMessage]) -> list[AnyMessage]:
@@ -81,6 +76,9 @@ class Assistant:
         return converted_messages
 
     def __call__(self, state: State, config: RunnableConfig):
+        state['messages'] = self.st.session_state.llm_state['messages']
+        state = self.st.session_state.llm_state
+
         # print("--->", "ASSISTANT CALL")
         while True:
             # print("--->", "START INVOKING", state['messages'])
@@ -88,9 +86,8 @@ class Assistant:
 
             invoke_input = state['messages'] # use this for well behaved models like chatgpt
             # invoke_input = self.convert_tool_messages(state['messages']) # we have to do this for ollama models because there is a bug where seeing ToolMessage will confuse it
-            
-            result = self.runnable.invoke(invoke_input)
 
+            result = self.runnable.invoke(invoke_input)
 
             # print("--->", "INVOKING DONE")
             # If the LLM happens to return an empty response, we will re-prompt it
@@ -113,5 +110,6 @@ class Assistant:
         if self.stream_callback and result.content:
             self.stream_callback(result.content)
 
+        state['messages'] += [result]
         # print("--->", "RETURNING RESULT", result)
-        return {"messages": result}
+        return self.st.session_state.llm_state
