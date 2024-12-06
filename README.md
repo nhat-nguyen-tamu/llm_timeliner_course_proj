@@ -20,7 +20,7 @@ This project aims to create a framework for an off-the-shelf LLM to search a dat
 4. To create a system that reads the notes and creates a displayable data format in the form of a timeline
 
 ## Methodology
-![Methodology Diagram](documentation/methodology.png)
+![Methodology Diagram](documentations/methodology.png)
 
 ## Approach
 Given a user prompt to the LLM with a pre-written system prompt, allow the LLM to explore certain parts of the web on its own.
